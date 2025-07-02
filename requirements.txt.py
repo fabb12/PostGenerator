@@ -1,0 +1,87 @@
+# ===== CORE DEPENDENCIES =====
+# Web Framework
+streamlit==1.31.0
+
+# LLM APIs
+anthropic==0.18.1
+openai==1.12.0
+
+# ===== CONTENT EXTRACTION =====
+# Web Scraping
+beautifulsoup4==4.12.3
+requests==2.31.0
+lxml==5.1.0
+
+# PDF Processing
+PyPDF2==3.0.1
+
+# URL parsing and validation
+validators==0.22.0
+
+# ===== LINKEDIN INTEGRATION =====
+# Unofficial LinkedIn API (be careful with rate limits)
+linkedin-api==2.1.1
+
+# ===== DATABASE =====
+# SQLite ORM
+sqlalchemy==2.0.25
+
+# ===== UTILITIES =====
+# Environment variables
+python-dotenv==1.0.1
+
+# Date and time handling
+python-dateutil==2.8.2
+pytz==2024.1
+
+# Data manipulation
+pandas==2.2.0
+
+# ===== SCHEDULING =====
+# Task scheduling (lightweight)
+schedule==1.2.0
+
+# ===== UI ENHANCEMENTS =====
+# Additional Streamlit components
+streamlit-tags==1.2.8
+streamlit-calendar==0.6.0
+
+# ===== DEVELOPMENT TOOLS =====
+# Rich terminal output for CLI
+rich==13.7.0
+
+# Progress bars
+tqdm==4.66.1
+
+# ===== LOGGING & MONITORING =====
+# Structured logging
+loguru==0.7.2
+
+# ===== VALIDATION =====
+# Data validation
+pydantic==2.5.3
+
+# ===== ASYNC SUPPORT =====
+# Async HTTP requests
+aiohttp==3.9.3
+
+# ===== TEXT PROCESSING =====
+# Text cleaning and processing
+ftfy==6.1.3
+unidecode==1.3.8
+
+# ===== SECURITY =====
+# Password hashing (if needed for future auth)
+bcrypt==4.1.2
+
+# ===== CACHING =====
+# Simple caching
+diskcache==5.6.3
+
+# ===== PLOTTING (for analytics) =====
+plotly==5.18.0
+
+# ===== TESTING (optional, for development) =====
+# pytest==7.4.4
+# pytest-asyncio==0.23.3
+# pytest-cov==4.1.0
