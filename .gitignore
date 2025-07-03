@@ -1,1 +1,218 @@
+# ===== ENVIRONMENT & SECRETS =====
+.env
+.env.local
+.env.production
+.env.test
+*.key
+secrets/
 
+# ===== PYTHON =====
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# ===== DATABASE =====
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+data/*.sqlite
+
+# ===== LOGS =====
+logs/
+*.log
+
+# ===== STREAMLIT =====
+.streamlit/
+.streamlit/secrets.toml
+
+# ===== TEMPORARY FILES =====
+temp/
+tmp/
+*.tmp
+temp_*
+.temp
+
+# ===== DATA FILES =====
+# Large data files
+*.csv
+*.xlsx
+*.pdf
+uploads/
+downloads/
+
+# Cache directories
+.cache/
+cache/
+
+# ===== IDE & EDITORS =====
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ===== OS GENERATED =====
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ===== LINKEDIN SPECIFIC =====
+# LinkedIn session files
+linkedin_session.json
+linkedin_cookies.json
+
+# ===== BACKUP FILES =====
+*.bak
+*.backup
+backup/
+backups/
+
+# ===== API RESPONSES =====
+api_cache/
+responses/
+
+# ===== MEDIA FILES =====
+media/
+images/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.mp4
+*.mov
+*.avi
+
+# ===== DOCUMENTATION BUILD =====
+docs/_build/
+site/
+
+# ===== MISC =====
+# Archives
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Package files
+node_modules/
+package-lock.json
+
+# Local config overrides
+config_local.py
+settings_local.py
