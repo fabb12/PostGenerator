@@ -178,49 +178,77 @@ def get_llm_config(preferred="claude"):
 # ===== EXPORT CONFIG =====
 class Config:
     """Configuration class for easy access"""
-    
+
     # App
     APP_NAME = APP_NAME
     ENVIRONMENT = ENVIRONMENT
     DEBUG = DEBUG
-    
+    SECRET_KEY = SECRET_KEY
+
     # Paths
     BASE_DIR = BASE_DIR
     DATA_DIR = DATA_DIR
     LOGS_DIR = LOGS_DIR
     DATABASE_PATH = DATABASE_PATH
-    
+    DATABASE_URL = DATABASE_URL
+
     # APIs
     ANTHROPIC_API_KEY = ANTHROPIC_API_KEY
     OPENAI_API_KEY = OPENAI_API_KEY
-    
+    CLAUDE_MODEL = CLAUDE_MODEL
+    OPENAI_MODEL = OPENAI_MODEL
+
     # LinkedIn
     LINKEDIN_EMAIL = LINKEDIN_EMAIL
     LINKEDIN_PASSWORD = LINKEDIN_PASSWORD
-    
+    LINKEDIN_CLIENT_ID = LINKEDIN_CLIENT_ID
+    LINKEDIN_CLIENT_SECRET = LINKEDIN_CLIENT_SECRET
+
     # LLM
     LLM_TEMPERATURE = LLM_TEMPERATURE
     MAX_TOKENS = MAX_TOKENS
-    
+    LLM_MODELS = LLM_MODELS
+
+    # Content Extraction
+    USER_AGENT = USER_AGENT
+    REQUEST_TIMEOUT = REQUEST_TIMEOUT
+
+    # LinkedIn Settings
+    LINKEDIN_RATE_LIMIT_POSTS_PER_DAY = LINKEDIN_RATE_LIMIT_POSTS_PER_DAY
+    LINKEDIN_RATE_LIMIT_DELAY_SECONDS = LINKEDIN_RATE_LIMIT_DELAY_SECONDS
+
     # Content
     DEFAULT_HASHTAGS = DEFAULT_HASHTAGS
     MAX_POST_LENGTH = MAX_POST_LENGTH
     DEFAULT_TONE = DEFAULT_TONE
-    
+    DEFAULT_POST_TYPE = DEFAULT_POST_TYPE
+
+    # Scheduling
+    TIMEZONE = TIMEZONE
+    OPTIMAL_POSTING_HOURS = OPTIMAL_POSTING_HOURS
+
+    # Logging
+    LOG_LEVEL = LOG_LEVEL
+    LOG_FILE = LOG_FILE
+
     # Options
     TONE_OPTIONS = TONE_OPTIONS
     POST_TYPE_OPTIONS = POST_TYPE_OPTIONS
-    
+
+    # Streamlit
+    STREAMLIT_CONFIG = STREAMLIT_CONFIG
+
+    # Prompts
+    SYSTEM_PROMPTS = SYSTEM_PROMPTS
+
     # Methods
     @staticmethod
     def validate():
         return validate_config()
-    
+
     @staticmethod
     def get_llm_config(preferred="claude"):
         return get_llm_config(preferred)
-
-
 # Create singleton instance
 config = Config()
 

@@ -65,39 +65,36 @@ class ContentExtractor:
             'Connection': 'keep-alive',
         }
         self.timeout = config.REQUEST_TIMEOUT
-    
+
     async def extract(self, source: Union[str, Path, BytesIO]) -> ExtractedContent:
-        """
-        Main extraction method that determines source type and delegates
-        
-        Args:
-            source: URL string, file path, or file-like object
-            
-        Returns:
-            ExtractedContent object with extracted data
-        """
-        # Determine source type
-        if isinstance(source, str):
-            if validators.url(source):
-                return await self.extract_from_url(source)
-            elif source.endswith('.pdf'):
-                return self.extract_from_pdf(Path(source))
+        """Main extraction method that determines source type and delegates"""
+        try:
+            # Determine source type
+            if isinstance(source, str):
+                if validators.url(source):
+                    return await self.extract_from_url(source)
+                elif source.endswith('.pdf'):
+                    return self.extract_from_pdf(Path(source))
+                else:
+                    return self.extract_from_text(source)
+            elif isinstance(source, Path):
+                if source.suffix == '.pdf':
+                    return self.extract_from_pdf(source)
+                else:
+                    return self.extract_from_text(source.read_text())
             else:
-                return self.extract_from_text(source)
-        elif isinstance(source, Path):
-            if source.suffix == '.pdf':
-                return self.extract_from_pdf(source)
-            else:
-                return self.extract_from_text(source.read_text())
-        elif isinstance(source, BytesIO):
-            return self.extract_from_pdf(source)
-        else:
+                return ExtractedContent(
+                    source_type="unknown",
+                    source=str(source),
+                    error="Unsupported source type"
+                )
+
+        except Exception as e:
             return ExtractedContent(
-                source_type="unknown",
+                source_type="error",
                 source=str(source),
-                error="Unsupported source type"
+                error=f"Extraction failed: {str(e)}"
             )
-    
     async def extract_from_url(self, url: str) -> ExtractedContent:
         """Extract content from a web URL"""
         try:

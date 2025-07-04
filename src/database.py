@@ -108,7 +108,7 @@ class ContentSource(Base):
     summary = Column(Text)
     keywords = Column(JSON)
     extracted_at = Column(DateTime, default=datetime.utcnow)
-    metadata = Column(JSON)
+    extra_data = Column(JSON)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
@@ -189,15 +189,20 @@ class Database:
             session.close()
     
     # === Post Operations ===
-    
+
     def create_post(
-        self,
-        content: str,
-        post_type: str = 'informative',
-        tone: str = 'professional',
-        sources: List[Dict] = None,
-        model_used: str = None,
-        **kwargs
+            self,
+            content: str,
+            post_type: str = 'informative',
+            tone: str = 'professional',
+            sources: List[Dict] = None,
+            model_used: str = None,
+            generation_temperature: float = None,
+            prompt_tokens: int = None,
+            completion_tokens: int = None,
+            hashtags: List[str] = None,
+            status: str = 'draft',  # Default status
+            **kwargs
     ) -> Post:
         """Create a new post"""
         with self.get_session() as session:
@@ -207,8 +212,12 @@ class Database:
                 tone=tone,
                 sources=sources or [],
                 model_used=model_used,
-                status='draft',
-                **kwargs
+                generation_temperature=generation_temperature,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                hashtags=hashtags or [],
+                status=status,  # Use the parameter directly
+                # Don't pass kwargs that might contain 'status' again
             )
             session.add(post)
             session.commit()
@@ -329,7 +338,7 @@ class Database:
         title: str = None,
         summary: str = None,
         keywords: List[str] = None,
-        metadata: Dict = None
+        extra_data: Dict = None
     ) -> ContentSource:
         """Save extracted content source for reuse"""
         with self.get_session() as session:
@@ -340,7 +349,7 @@ class Database:
                 content=content,
                 summary=summary,
                 keywords=keywords or [],
-                metadata=metadata or {}
+                extra_data=extra_data or {}
             )
             session.add(source)
             session.commit()
