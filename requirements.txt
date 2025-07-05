@@ -80,7 +80,7 @@ diskcache==5.6.3
 
 # ===== PLOTTING (for analytics) =====
 plotly==5.18.0
-
+google-generativeai==0.8.2
 # ===== TESTING (optional, for development) =====
 # pytest==7.4.4
 # pytest-asyncio==0.23.3

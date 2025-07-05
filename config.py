@@ -30,7 +30,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "default-secret-key-change-in-production")
 # Anthropic Claude (primary)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-3-opus-20240229")
-
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
 # OpenAI (fallback)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
@@ -60,6 +61,11 @@ LLM_MODELS = {
         "api_key": OPENAI_API_KEY,
         "model": OPENAI_MODEL,
         "available": bool(OPENAI_API_KEY)
+    },
+    "gemini": {
+        "api_key": GOOGLE_API_KEY,
+        "model": GEMINI_MODEL,
+        "available": bool(GOOGLE_API_KEY)
     }
 }
 
@@ -135,10 +141,15 @@ SYSTEM_PROMPTS = {
     "claude": """You are an expert LinkedIn content creator specializing in creating 
 engaging, professional posts for the logistics and transportation industry. 
 You understand LinkedIn's best practices and create content that drives engagement.""",
-    
+
     "openai": """You are a professional social media manager specialized in LinkedIn 
 content creation for B2B companies in logistics and transportation. Create engaging 
-posts that provide value and encourage professional discussion."""
+posts that provide value and encourage professional discussion.""",
+
+    "gemini": """You are a skilled LinkedIn content strategist with expertise in B2B 
+marketing and professional networking. Create compelling, valuable posts that resonate 
+with business professionals while maintaining authenticity and driving engagement. 
+Focus on clear, concise communication that sparks meaningful conversations."""
 }
 
 # ===== VALIDATION =====
@@ -169,7 +180,7 @@ def get_available_llm():
             return name, config
     return None, None
 
-def get_llm_config(preferred="claude"):
+def get_llm_config(preferred="gemini"):
     """Get LLM configuration with fallback"""
     if LLM_MODELS.get(preferred, {}).get("available"):
         return preferred, LLM_MODELS[preferred]
@@ -197,7 +208,8 @@ class Config:
     OPENAI_API_KEY = OPENAI_API_KEY
     CLAUDE_MODEL = CLAUDE_MODEL
     OPENAI_MODEL = OPENAI_MODEL
-
+    GOOGLE_API_KEY = GOOGLE_API_KEY
+    GEMINI_MODEL = GEMINI_MODEL
     # LinkedIn
     LINKEDIN_EMAIL = LINKEDIN_EMAIL
     LINKEDIN_PASSWORD = LINKEDIN_PASSWORD

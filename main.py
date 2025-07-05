@@ -165,7 +165,7 @@ def render_sidebar():
         # Logo/Header
         st.markdown("# 🚀 LinkedIn Post Generator")
         st.markdown("---")
-        
+
         # Navigation info
         st.info("""
         **Navigation:**
@@ -173,44 +173,57 @@ def render_sidebar():
         - 📅 **Schedule**: Manage scheduled posts  
         - 📊 **History**: View past posts
         """)
-        
+
         # Quick Stats
         st.markdown("### 📈 Quick Stats")
-        
+
         try:
             # Get stats from database
             total_posts = len(db.get_posts())
             published = len(db.get_posts(status='published'))
             scheduled = len(db.get_posts(status='scheduled'))
             drafts = len(db.get_posts(status='draft'))
-            
+
+            # Source stats
+            total_sources = len(db.get_content_sources())
+
             col1, col2 = st.columns(2)
             with col1:
                 st.metric("Total Posts", total_posts)
                 st.metric("Published", published)
+                st.metric("Sources Saved", total_sources)
             with col2:
                 st.metric("Scheduled", scheduled)
                 st.metric("Drafts", drafts)
+                st.metric("Recent Sources", len(db.get_recent_sources(limit=10)))
         except Exception as e:
             st.error(f"Error loading stats: {str(e)}")
-        
+
         # Configuration Status
         st.markdown("---")
         st.markdown("### ⚙️ Configuration")
-        
-        # Show which LLM is active
-        active_llm, llm_config = config.get_llm_config()
-        if active_llm:
-            st.success(f"✅ {active_llm.upper()} Active")
+
+        # Show available AI models
+        ai_models = []
+        if config.ANTHROPIC_API_KEY:
+            ai_models.append("✅ Claude")
+        if config.OPENAI_API_KEY:
+            ai_models.append("✅ OpenAI")
+        if config.GOOGLE_API_KEY:
+            ai_models.append("✅ Gemini 2.0 Pro")
+
+        if ai_models:
+            for model in ai_models:
+                st.success(model)
         else:
-            st.error("❌ No LLM configured")
-        
+            st.error("❌ No AI models configured")
+
         # LinkedIn status
         if config.LINKEDIN_EMAIL:
             st.success("✅ LinkedIn configured")
         else:
             st.warning("⚠️ LinkedIn not configured")
-        
+
         # Footer
         st.markdown("---")
         st.caption(f"v1.0.0 | {config.ENVIRONMENT.title()}")
@@ -411,7 +424,6 @@ def main():
     st.markdown(
         """
         <div style='text-align: center; color: #666; padding: 2rem 0;'>
-            <p>Made with ❤️ using Streamlit and AI</p>
             <p style='font-size: 0.9rem;'>
                 <a href='https://github.com/yourusername/linkedin-post-generator' style='color: #0A66C2;'>GitHub</a> | 
                 <a href='#' style='color: #0A66C2;'>Documentation</a> | 

@@ -712,20 +712,156 @@ Total Shares: {df['shares'].sum():,}
     return report
 
 
+def render_saved_sources():
+    """Render saved sources management"""
+    st.markdown("## 📚 Saved Content Sources")
+
+    # Stats
+    col1, col2, col3, col4 = st.columns(4)
+
+    sources = db.get_content_sources(limit=100)
+
+    with col1:
+        st.metric("Total Sources", len(sources))
+
+    with col2:
+        web_sources = [s for s in sources if s.source_type == 'web']
+        st.metric("Web URLs", len(web_sources))
+
+    with col3:
+        text_sources = [s for s in sources if s.source_type == 'text']
+        st.metric("Text Sources", len(text_sources))
+
+    with col4:
+        pdf_sources = [s for s in sources if s.source_type == 'pdf']
+        st.metric("PDF Sources", len(pdf_sources))
+
+    # Management actions
+    st.markdown("### 🔧 Manage Sources")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        days_to_keep = st.number_input(
+            "Keep sources for (days)",
+            min_value=7,
+            max_value=365,
+            value=30,
+            help="Sources older than this will be deleted"
+        )
+
+    with col2:
+        if st.button("🧹 Clean Old Sources", use_container_width=True):
+            deleted = db.clear_old_sources(days=days_to_keep)
+            st.success(f"Deleted {deleted} sources older than {days_to_keep} days")
+            st.rerun()
+
+    with col3:
+        if st.button("🗑️ Delete All Sources", use_container_width=True):
+            if st.checkbox("I'm sure", key="confirm_delete_all"):
+                # Delete all sources
+                for source in sources:
+                    db.delete_content_source(source.id)
+                st.success("All sources deleted!")
+                st.rerun()
+
+    # Display sources
+    st.markdown("### 📋 Source List")
+
+    # Filter options
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        type_filter = st.selectbox(
+            "Source Type",
+            options=['All', 'Web', 'Text', 'PDF']
+        )
+
+    with col2:
+        sort_by = st.selectbox(
+            "Sort by",
+            options=['Newest first', 'Oldest first', 'By type']
+        )
+
+    with col3:
+        search_query = st.text_input(
+            "Search sources",
+            placeholder="Search in title or content..."
+        )
+
+    # Filter sources
+    filtered_sources = sources
+
+    if type_filter != 'All':
+        filtered_sources = [s for s in filtered_sources if s.source_type == type_filter.lower()]
+
+    if search_query:
+        query_lower = search_query.lower()
+        filtered_sources = [
+            s for s in filtered_sources
+            if query_lower in (s.title or '').lower() or query_lower in (s.content or '').lower()
+        ]
+
+    # Sort sources
+    if sort_by == 'Newest first':
+        filtered_sources.sort(key=lambda x: x.extracted_at, reverse=True)
+    elif sort_by == 'Oldest first':
+        filtered_sources.sort(key=lambda x: x.extracted_at)
+    elif sort_by == 'By type':
+        filtered_sources.sort(key=lambda x: x.source_type)
+
+    # Display sources
+    if not filtered_sources:
+        st.info("No sources found matching the filters.")
+    else:
+        st.markdown(f"Showing **{len(filtered_sources)}** sources")
+
+        for source in filtered_sources[:50]:  # Limit display
+            with st.expander(
+                    f"{source.source_type.upper()} - {source.title or source.source_url[:50]}... ({get_time_ago(source.extracted_at)})",
+                    expanded=False
+            ):
+                col1, col2 = st.columns([3, 1])
+
+                with col1:
+                    st.markdown(f"**Type:** {source.source_type}")
+                    st.markdown(f"**Source:** {source.source_url}")
+                    if source.title:
+                        st.markdown(f"**Title:** {source.title}")
+                    st.markdown(f"**Extracted:** {format_datetime(source.extracted_at)}")
+
+                    if source.keywords:
+                        st.markdown(f"**Keywords:** {', '.join(source.keywords[:10])}")
+
+                    st.markdown("**Content Preview:**")
+                    st.text(source.content[:500] + "..." if len(source.content) > 500 else source.content)
+
+                with col2:
+                    if st.button("🗑️ Delete", key=f"delete_source_{source.id}"):
+                        db.delete_content_source(source.id)
+                        st.success("Source deleted!")
+                        st.rerun()
+
+                    if st.button("📝 Use in Post", key=f"use_source_{source.id}"):
+                        st.session_state.switch_to_create = True
+                        st.session_state.source_to_use = source.id
+                        st.info("Switch to Create Post page to use this source")
+
+
 def main():
     """Main function for history page"""
     init_page_state()
     render_header()
-    
+
     # Navigation tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Analytics", "📋 Post History", "🔍 Details", "📥 Export"])
-    
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Analytics", "📋 Post History", "🔍 Details", "📥 Export", "📚 Sources"])
+
     with tab1:
         render_analytics_dashboard()
-    
+
     with tab2:
         render_post_history()
-    
+
     with tab3:
         st.markdown("## 🔍 Detailed Analytics")
         st.info("Advanced analytics features coming soon! This will include:")
@@ -736,10 +872,43 @@ def main():
         - **Trend Analysis**: Identify trending topics and hashtags
         - **ROI Tracking**: Measure business impact of your posts
         """)
-    
+
     with tab4:
         render_export_options()
 
+    with tab5:
+        render_saved_sources()
+
+def main():
+    """Main function for history page"""
+    init_page_state()
+    render_header()
+
+    # Navigation tabs
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Analytics", "📋 Post History", "🔍 Details", "📥 Export", "📚 Sources"])
+
+    with tab1:
+        render_analytics_dashboard()
+
+    with tab2:
+        render_post_history()
+
+    with tab3:
+        st.markdown("## 🔍 Detailed Analytics")
+        st.info("Advanced analytics features coming soon! This will include:")
+        st.markdown("""
+        - **Content Analysis**: AI-powered content performance analysis
+        - **Audience Insights**: Who's engaging with your posts
+        - **Competitor Benchmarking**: Compare your performance
+        - **Trend Analysis**: Identify trending topics and hashtags
+        - **ROI Tracking**: Measure business impact of your posts
+        """)
+
+    with tab4:
+        render_export_options()
+
+    with tab5:
+        render_saved_sources()
 
 if __name__ == "__main__":
     main()
