@@ -181,13 +181,14 @@ Generate a LinkedIn post that will resonate with professionals in the industry."
         }
 
     async def generate(
-        self,
-        sources: List[ExtractedContent],
-        tone: PostTone = PostTone.PROFESSIONAL,
-        post_type: PostType = PostType.INFORMATIVE,
-        num_variants: int = 1,
-        additional_context: Optional[str] = None,
-        preferred_model: str = "claude"  # Now supports "claude", "openai", "gemini"
+            self,
+            sources: List[ExtractedContent],
+            tone: PostTone = PostTone.PROFESSIONAL,
+            post_type: PostType = PostType.INFORMATIVE,
+            num_variants: int = 1,
+            additional_context: Optional[str] = None,
+            preferred_model: str = "claude",
+            language: str = "Italian"  # <-- AGGIUNGI QUESTA RIGA
     ) -> List[GeneratedPost]:
         """
         Generate LinkedIn posts from extracted content
@@ -199,6 +200,7 @@ Generate a LinkedIn post that will resonate with professionals in the industry."
             num_variants: Number of variations to generate
             additional_context: Additional instructions or context
             preferred_model: Preferred AI model ('claude', 'openai', or 'gemini')
+            language: Language for the post (default: 'Italian')
 
         Returns:
             List of GeneratedPost objects
@@ -214,7 +216,8 @@ Generate a LinkedIn post that will resonate with professionals in the industry."
             sources_summary=sources_summary,
             tone=tone.value,
             post_type=post_type.value,
-            additional_context=additional_context
+            additional_context=additional_context,
+            language=language  # <-- AGGIUNGI QUESTA RIGA
         )
 
         # Generate variants
@@ -420,15 +423,22 @@ Generate a LinkedIn post that will resonate with professionals in the industry."
         return '\n\n'.join(summaries)
 
     def _prepare_prompt(
-        self,
-        sources_summary: str,
-        tone: str,
-        post_type: str,
-        additional_context: Optional[str] = None
+            self,
+            sources_summary: str,
+            tone: str,
+            post_type: str,
+            additional_context: Optional[str] = None,
+            language: str = "Italian"  # <-- AGGIUNGI QUESTA RIGA
     ) -> str:
         """Prepare the final prompt for the AI model"""
         # Add default hashtags to context
-        context_parts = []
+
+        # Add language instruction
+        language_instruction = f"Write the post entirely in {language}. All content, including hashtags, should be in {language}."
+
+        # Add default hashtags to context
+        context_parts = [language_instruction]  # <-- NOTA: language_instruction viene aggiunto per primo
+
         if config.DEFAULT_HASHTAGS:
             context_parts.append(f"Suggested hashtags: {' '.join(config.DEFAULT_HASHTAGS)}")
 
@@ -532,13 +542,14 @@ Generate a LinkedIn post that will resonate with professionals in the industry."
             return False, f"Connection test failed: {str(e)}"
 
     def generate_sync(
-        self,
-        sources: List[ExtractedContent],
-        tone: PostTone = PostTone.PROFESSIONAL,
-        post_type: PostType = PostType.INFORMATIVE,
-        num_variants: int = 1,
-        additional_context: Optional[str] = None,
-        preferred_model: str = "claude"
+            self,
+            sources: List[ExtractedContent],
+            tone: PostTone = PostTone.PROFESSIONAL,
+            post_type: PostType = PostType.INFORMATIVE,
+            num_variants: int = 1,
+            additional_context: Optional[str] = None,
+            preferred_model: str = "claude",
+            language: str = "Italian"
     ) -> List[GeneratedPost]:
         """Synchronous wrapper for generate method"""
         loop = asyncio.new_event_loop()
@@ -551,7 +562,8 @@ Generate a LinkedIn post that will resonate with professionals in the industry."
                     post_type=post_type,
                     num_variants=num_variants,
                     additional_context=additional_context,
-                    preferred_model=preferred_model
+                    preferred_model=preferred_model,
+                    language=language
                 )
             )
             return result
@@ -565,7 +577,8 @@ def generate_post(
     tone: str = "professional",
     post_type: str = "informative",
     num_variants: int = 1,
-    preferred_model: str = "claude"
+    preferred_model: str = "claude",
+    language: str = "Italian"
 ) -> List[GeneratedPost]:
     """
     Quick function to generate posts
@@ -591,7 +604,8 @@ def generate_post(
         tone=tone_enum,
         post_type=type_enum,
         num_variants=num_variants,
-        preferred_model=preferred_model
+        preferred_model=preferred_model,
+        language=language
     )
 
 
