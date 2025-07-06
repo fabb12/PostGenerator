@@ -1,7 +1,7 @@
 # pages/1_📝_Create_Post.py
 """
 Create Post Page - Generate LinkedIn posts from various sources
-UPDATED with direct publishing to LinkedIn, Gemini support, and Saved Sources.
+UPDATED with AUTOMATIC link/image handling and direct publishing.
 """
 
 import streamlit as st
@@ -206,20 +206,17 @@ def render_generated_posts():
     for idx, post in enumerate(st.session_state.generated_posts):
         is_selected = (st.session_state.selected_post_index == idx)
         with st.container(border=True):
-            # ### <<< CORREZIONE 1: Aggiunta di una label al text_area ###
-            # Usiamo una label descrittiva ma la nascondiamo per non ingombrare la UI.
             st.text_area(
-                label=f"Variante {idx + 1}",
+                label=f"Variante {idx + 1} ({post.model_used})",
                 value=post.content,
                 height=150,
                 disabled=True,
                 key=f"post_content_{idx}",
-                label_visibility="collapsed"  # <-- Nasconde la label ma la rende accessibile
+                label_visibility="collapsed"
             )
             if st.button("✅ Scegli questa", key=f"select_{idx}", type="primary" if not is_selected else "secondary"):
                 st.session_state.selected_post_index = idx
                 st.session_state.edited_content = post.content
-                # Non fare il rerun qui, lascia che il flusso continui per mostrare subito le azioni
 
 
 def render_post_actions():
@@ -229,11 +226,23 @@ def render_post_actions():
 
     selected_post = st.session_state.generated_posts[st.session_state.selected_post_index]
 
-    link_source = next((c for c in st.session_state.extracted_content if c.source_type == 'web' and c.image_url), None)
-    if link_source:
-        with st.container(border=True):
-            st.markdown(f"**Anteprima Media da:** `{link_source.source}`")
-            st.image(link_source.image_url, width=300)
+    # ### <<< MODIFICA CHIAVE 1: Sezione Anteprima Media potenziata ###
+    with st.container(border=True):
+        st.markdown("#### Anteprima Media da Condividere")
+        # Cerca la prima fonte URL valida tra quelle estratte
+        link_source = next((c for c in st.session_state.extracted_content if c.source_type == 'web' and c.is_valid),
+                           None)
+
+        if link_source:
+            st.markdown(f"**Link:** `{link_source.source}`")
+            if link_source.image_url:
+                st.markdown("**Immagine di Anteprima:**")
+                st.image(link_source.image_url, width=300,
+                         caption="Questa immagine verrà usata da LinkedIn per l'anteprima.")
+            else:
+                st.info("Nessuna immagine di anteprima trovata. LinkedIn potrebbe sceglierne una automaticamente.")
+        else:
+            st.info("Nessun link da condividere. Verrà pubblicato un post di solo testo.")
 
     edited_content = st.text_area(
         "Modifica il testo del post finale",
@@ -261,7 +270,7 @@ def save_post_action(content: str, original_post, action_type: str):
     try:
         post_id = db.create_post(
             content=content, post_type=original_post.post_type, tone=original_post.tone,
-            sources=[s['content'] for s in st.session_state.sources],
+            sources=[s.source for s in st.session_state.extracted_content],
             model_used=original_post.model_used, status='draft'
         )
         if action_type == 'draft':
@@ -281,6 +290,7 @@ def publish_post_action(content: str, original_post):
     """Handles the direct publishing logic."""
     if not content.strip(): st.error("Il contenuto non può essere vuoto."); return
 
+    # ### <<< MODIFICA CHIAVE 2: Logica per trovare il link consistente ###
     link_source = next((c for c in st.session_state.extracted_content if c.source_type == 'web' and c.is_valid), None)
     link_to_share = link_source.source if link_source else None
 
@@ -290,23 +300,41 @@ def publish_post_action(content: str, original_post):
             result = asyncio.run(publisher.publish_post(post_content=content, link_to_share=link_to_share))
 
             if result.success:
-                db.mark_post_published(
-                    content=content, post_type=original_post.post_type, tone=original_post.tone,
-                    sources=[s.source for s in st.session_state.extracted_content],
-                    model_used=original_post.model_used,
-                    linkedin_post_id=result.post_id, linkedin_post_url=result.post_url
-                )
+                # Usa una funzione dedicata per salvare il post pubblicato per pulizia
+                save_published_post(content, original_post, result)
                 st.success("✅ Post pubblicato con successo!")
                 if result.post_url: st.link_button("Visualizza su LinkedIn", result.post_url)
                 st.balloons();
-                time.sleep(2)
-                # Reset state for new post creation
-                init_page_state()
+                time.sleep(2);
+                init_page_state();
                 st.rerun()
             else:
                 st.error(f"❌ Pubblicazione fallita: {result.error_message}")
         except Exception as e:
             st.error(f"Errore imprevisto: {e}")
+            import traceback;
+            traceback.print_exc()
+
+
+def save_published_post(content, original_post, result):
+    """Saves the details of a successfully published post to the database."""
+    # ### <<< MODIFICA CHIAVE 3: Salvataggio corretto delle fonti ###
+    # Salva le fonti in un formato strutturato, non solo una lista di stringhe
+    sources_to_save = [
+        {'type': s.source_type, 'source': s.source, 'title': s.title}
+        for s in st.session_state.extracted_content if s.is_valid
+    ]
+    db.create_post(
+        content=content,
+        status='published',
+        published_at=datetime.utcnow(),
+        post_type=original_post.post_type,
+        tone=original_post.tone,
+        model_used=original_post.model_used,
+        linkedin_post_id=result.post_id,
+        linkedin_post_url=result.post_url,
+        sources=sources_to_save
+    )
 
 
 def main():
@@ -328,8 +356,6 @@ def main():
 
     if st.session_state.generated_posts:
         render_generated_posts()
-        # ### <<< CORREZIONE 2: Logica di visualizzazione migliorata ###
-        # Le azioni vengono mostrate solo DOPO che l'utente ha fatto una scelta.
         if st.session_state.selected_post_index is not None:
             render_post_actions()
 

@@ -52,9 +52,10 @@ MAX_TOKENS = int(os.getenv("MAX_TOKENS", "500"))
 
 # Model preferences (in order of preference)
 LLM_MODELS = {
+    "gemini": {"api_key": GOOGLE_API_KEY, "model": GEMINI_MODEL, "available": bool(GOOGLE_API_KEY)},
     "claude": {"api_key": ANTHROPIC_API_KEY, "model": CLAUDE_MODEL, "available": bool(ANTHROPIC_API_KEY)},
-    "openai": {"api_key": OPENAI_API_KEY, "model": OPENAI_MODEL, "available": bool(OPENAI_API_KEY)},
-    "gemini": {"api_key": GOOGLE_API_KEY, "model": GEMINI_MODEL, "available": bool(GOOGLE_API_KEY)}
+    "openai": {"api_key": OPENAI_API_KEY, "model": OPENAI_MODEL, "available": bool(OPENAI_API_KEY)}
+
 }
 
 # ===== CONTENT EXTRACTION =====
