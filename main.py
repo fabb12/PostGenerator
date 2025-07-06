@@ -364,27 +364,29 @@ def render_analytics_preview():
         st.plotly_chart(fig, use_container_width=True)
 
 
+# main.py
+
 def render_quick_actions():
     """Render quick action buttons"""
     st.markdown("## 🎯 Quick Actions")
-    
+
     col1, col2, col3, col4 = st.columns(4)
-    
+
     with col1:
         if st.button("📝 Create New Post", use_container_width=True):
             st.switch_page("pages/1_📝_Create_Post.py")
-    
+
     with col2:
-        if st.button("📅 Schedule Post", use_container_width=True):
-            st.switch_page("pages/2_📅_Schedule.py")
-    
+        if st.button("🚀 Schedule/Automate", use_container_width=True):  # Testo del pulsante aggiornato
+            st.switch_page("pages/2_🚀_Schedule_&_Automation.py")  #
+
     with col3:
         if st.button("📊 View Analytics", use_container_width=True):
             st.switch_page("pages/3_📊_History.py")
-    
+
     with col4:
         if st.button("⚙️ Settings", use_container_width=True):
-            st.info("Settings page coming soon!")
+            st.switch_page("pages/4_⚙️_Settings.py")
 
 
 def main():

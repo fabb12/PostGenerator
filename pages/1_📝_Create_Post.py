@@ -1059,7 +1059,7 @@ def save_post_and_redirect_to_schedule(content: str, original_post):
         st.session_state.selected_post_index = None
 
         # Redirect to schedule page
-        st.switch_page("pages/2_📅_Schedule.py")
+        st.switch_page("pages/2_🚀_Schedule_&_Automation.py")
 
     except Exception as e:
         st.error(f"Error saving post: {str(e)}")
