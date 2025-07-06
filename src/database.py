@@ -429,6 +429,22 @@ class Database:
             logger.error(f"Error getting analytics summary: {str(e)}")
             return {}
 
+    def get_all_saved_sources(self, limit: int = 50) -> List[AutomationSource]:
+        """
+        Retrieves all user-saved sources for potential reuse.
+        Currently fetches from automation sources.
+        """
+        try:
+            with self.get_session() as session:
+                # Per ora, restituiamo le fonti di automazione, che sono quelle salvate dall'utente.
+                sources = session.query(AutomationSource).order_by(AutomationSource.created_at.desc()).limit(limit).all()
+                for source in sources:
+                    self._load_all_attributes(source)
+                    session.expunge(source)
+                return sources
+        except Exception as e:
+            logger.error(f"Error getting all saved sources: {str(e)}")
+            return []
 # --- SINGLETON INSTANCE ---
 db = Database()
 

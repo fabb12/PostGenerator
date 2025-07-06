@@ -1,13 +1,16 @@
-# pages/2_🚀_Schedule_&_Automation.py
-
+# PostGenerator/pages/2_🚀_Schedule_&_Automation.py
 """
 Unified page for Scheduling, Automation, and Publishing.
+This page combines all post-creation workflows into a single,
+streamlined interface with tabs.
 """
 
 import streamlit as st
 import pandas as pd
 import asyncio
-from datetime import datetime
+from datetime import datetime, time, timedelta
+import pytz
+
 from pathlib import Path
 import sys
 
@@ -16,119 +19,242 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from config import config
 from src.database import db
-from src.linkedin_client import LinkedInScheduler
+from src.linkedin_client import LinkedInScheduler, check_linkedin_connection
 from src.automation_manager import AutomationManager
-from utils.helpers import format_datetime, validate_url
+from utils.helpers import format_datetime, validate_url, get_optimal_posting_times
 
+# --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="Schedule & Automation - LinkedIn Generator",
+    page_title="Schedule & Automation",
     page_icon="🚀",
     layout="wide"
 )
 
+# --- CUSTOM CSS (preso dal tuo esempio) ---
+st.markdown("""
+<style>
+    .automation-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        color: white;
+        margin-bottom: 1rem;
+    }
+    .source-item {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 0.5rem 0;
+    }
+    .status-active { color: #28a745; font-weight: bold; }
+    .status-inactive { color: #dc3545; font-weight: bold; }
+</style>
+""", unsafe_allow_html=True)
+
+
+# --- SESSION STATE INITIALIZATION ---
+def init_session_state():
+    # Per lo scheduling manuale
+    if 'selected_post_id_for_scheduling' not in st.session_state:
+        st.session_state.selected_post_id_for_scheduling = None
+    if 'schedule_date' not in st.session_state:
+        st.session_state.schedule_date = datetime.now().date() + timedelta(days=1)
+    if 'schedule_time' not in st.session_state:
+        st.session_state.schedule_time = time(9, 0)
+    # Per l'automazione
+    if 'automation_enabled' not in st.session_state:
+        # Qui potresti leggere un valore salvato nel DB o in un file di config
+        st.session_state.automation_enabled = False
+    if 'auto_publish' not in st.session_state:
+        st.session_state.auto_publish = False
+
+
+init_session_state()
+
+# --- PAGE HEADER ---
 st.title("🚀 Schedule & Automation")
-st.markdown("Manage your content pipeline, from automated generation to final publishing.")
+st.markdown(
+    "Gestisci la tua pipeline di contenuti: dalle bozze alla programmazione, fino all'automazione e pubblicazione.")
 
 # --- TABS FOR DIFFERENT ACTIONS ---
-tab1, tab2, tab3 = st.tabs(["▶️ Publishing Queue", "⚙️ Automation Settings", "📊 Scheduled Posts"])
+tab1, tab2, tab3 = st.tabs(["📅 Scheduling", "🤖 Automation", "▶️ Publishing Queue"])
 
-# --- TAB 1: Publishing Queue ---
+# ==============================================================================
+# TAB 1: SCHEDULING - Gestione bozze e programmazione manuale
+# ==============================================================================
 with tab1:
-    st.header("▶️ Publishing Queue")
-    st.markdown(
-        "Posts that are scheduled and ready to be published will appear here. Click the button to process the queue.")
+    st.header("📅 Scheduling: Programma le tue Bozze")
 
-    posts_to_publish = db.get_posts_to_publish()
 
-    if not posts_to_publish:
-        st.info("The publishing queue is empty. No posts are currently due.")
-    else:
-        st.warning(f"**{len(posts_to_publish)} post(s)** are ready to be published now!")
-        for post in posts_to_publish:
-            st.markdown(f"- **Post ID {post.id}**: Scheduled for {format_datetime(post.scheduled_for)}")
+    def render_scheduling_interface(post_id):
+        post = db.get_post(post_id)
+        if not post:
+            st.error("Post non trovato.");
+            st.session_state.selected_post_id_for_scheduling = None;
+            st.rerun()
+            return
 
-    if st.button("🚀 Process Publishing Queue Now", type="primary", use_container_width=True,
-                 disabled=not posts_to_publish):
-        with st.spinner("Connecting to LinkedIn and publishing posts..."):
-            scheduler = LinkedInScheduler()
-            # Run async function in Streamlit
-            results = asyncio.run(scheduler.process_scheduled_posts())
+        st.markdown(f"### 📝 Programmazione per Post ID: {post.id}")
+        st.text_area("Contenuto", value=post.content, height=150, disabled=True)
 
-            if not results:
-                st.info("No posts were published.")
-            else:
-                st.success("Publishing process finished!")
-                for result in results:
-                    if result.get('status') == 'published':
-                        st.success(f"✅ Published post ID {result.get('post_id')}.")
-                    else:
-                        st.error(f"❌ Failed post ID {result.get('post_id')}: {result.get('error')}")
+        col1, col2 = st.columns(2)
+        with col1:
+            schedule_date = st.date_input("Data", value=st.session_state.schedule_date, min_value=datetime.now().date(),
+                                          key="sched_date")
+            schedule_time = st.time_input("Ora", value=st.session_state.schedule_time, key="sched_time")
+
+        with col2:
+            st.markdown("💡 **Orari Suggeriti**")
+            for t in get_optimal_posting_times():
+                if st.button(f"🕐 {t}", key=f"time_{t}"):
+                    h, m = map(int, t.split(':'));
+                    st.session_state.schedule_time = time(h, m);
+                    st.rerun()
+
+        scheduled_dt_naive = datetime.combine(schedule_date, st.session_state.schedule_time)
+        tz = pytz.timezone(config.TIMEZONE)
+        scheduled_dt_aware = tz.localize(scheduled_dt_naive)
+
+        if scheduled_dt_aware > datetime.now(tz):
+            st.success(f"Programmato per: {format_datetime(scheduled_dt_aware)}")
+            if st.button("🚀 Conferma Programmazione", type="primary", use_container_width=True):
+                utc_dt = scheduled_dt_aware.astimezone(pytz.utc).replace(tzinfo=None)
+                db.schedule_post(post.id, utc_dt)
+                st.success("✅ Post programmato!");
+                st.session_state.selected_post_id_for_scheduling = None;
                 st.rerun()
+        else:
+            st.error("⚠️ L'orario di programmazione non può essere nel passato.")
 
-# --- TAB 2: Automation Settings ---
+        if st.button("❌ Annulla"): st.session_state.selected_post_id_for_scheduling = None; st.rerun()
+
+
+    draft_posts = db.get_posts(status='draft')
+    if st.session_state.selected_post_id_for_scheduling:
+        render_scheduling_interface(st.session_state.selected_post_id_for_scheduling)
+    elif not draft_posts:
+        st.info("Non ci sono bozze da programmare. Creane una dalla pagina 'Create Post'.")
+    else:
+        st.markdown("Seleziona una bozza da programmare:")
+        for post in draft_posts:
+            with st.container(border=True):
+                col1, col2 = st.columns([4, 1])
+                col1.text(post.content[:150] + "...")
+                if col2.button("📅 Programma", key=f"sched_{post.id}", use_container_width=True):
+                    st.session_state.selected_post_id_for_scheduling = post.id;
+                    st.rerun()
+
+# ==============================================================================
+# TAB 2: AUTOMATION - Gestione completa dell'automazione
+# ==============================================================================
 with tab2:
-    st.header("⚙️ Automation Settings")
-    st.markdown("Manage sources for automatic post generation.")
+    st.header("🤖 Automation: Generazione Automatica di Post")
 
-    # Add new source
-    with st.form("add_source_form"):
-        new_source_url = st.text_input("Add a new URL source (e.g., a blog or news feed)",
-                                       placeholder="https://example.com/blog")
-        submitted = st.form_submit_button("➕ Add Source")
-        if submitted and validate_url(new_source_url):
-            if db.add_automation_source(url=new_source_url):
-                st.success(f"Source added: {new_source_url}")
+    # --- Dashboard di Controllo Automazione ---
+    with st.container():
+        st.markdown('<div class="automation-card">', unsafe_allow_html=True)
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            st.markdown("### 🚀 Automazione Giornaliera")
+            st.markdown(
+                "- **Controlla** le fonti per nuovo contenuto.\n- **Genera** nuovi post con AI.\n- **Programma** i post negli orari ottimali.")
+        with col2:
+            st.session_state.automation_enabled = st.toggle("Abilita Automazione",
+                                                            value=st.session_state.automation_enabled)
+            st.session_state.auto_publish = st.toggle("Pubblica Automaticamente", value=st.session_state.auto_publish,
+                                                      disabled=not st.session_state.automation_enabled)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- Impostazioni di Automazione (in un expander) ---
+    with st.expander("⚙️ Impostazioni Dettagliate Automazione"):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### Programmazione")
+            st.multiselect("Orari di controllo fonti", options=["06:00", "09:00", "12:00", "15:00"], default=["09:00"],
+                           help="Quando controllare le fonti per nuovo contenuto.")
+            st.selectbox("Frequenza pubblicazione", options=["Ogni giorno", "Ogni 2 giorni", "2 volte a settimana"],
+                         index=1)
+        with col2:
+            st.markdown("#### Configurazione Post")
+            st.selectbox("Tone predefinito", options=config.TONE_OPTIONS,
+                         index=config.TONE_OPTIONS.index(config.AUTOMATION_DEFAULT_TONE))
+            st.selectbox("Tipo post predefinito", options=config.POST_TYPE_OPTIONS,
+                         index=config.POST_TYPE_OPTIONS.index(config.AUTOMATION_DEFAULT_POST_TYPE))
+        if st.button("💾 Salva Impostazioni"):
+            st.success("Impostazioni salvate! (Funzionalità in sviluppo)")
+
+    # --- Gestione Fonti ---
+    st.subheader("📥 Fonti per Automazione")
+    with st.form("add_source_form_auto"):
+        new_source_url = st.text_input("Aggiungi URL fonte (blog, feed, ecc.)", placeholder="https://example.com/blog")
+        if st.form_submit_button("➕ Aggiungi Fonte"):
+            if validate_url(new_source_url):
+                if db.add_automation_source(url=new_source_url):
+                    st.success(f"Fonte aggiunta: {new_source_url}")
+                else:
+                    st.error("Fonte già esistente.")
             else:
-                st.error("Source might already exist.")
-        elif submitted:
-            st.error("Please enter a valid URL.")
+                st.error("URL non valido.")
 
-    st.subheader("📋 Active Automation Sources")
     sources = db.get_active_automation_sources()
     if not sources:
-        st.info("No automation sources found. Add one above to get started.")
+        st.info("Nessuna fonte configurata. Aggiungine una per iniziare.")
     else:
         for source in sources:
-            col1, col2, col3 = st.columns([4, 2, 1])
-            col1.markdown(f"[{source.url}]({source.url})")
-            col2.caption(
-                f"Last checked: {format_datetime(source.last_checked_at) if source.last_checked_at else 'Never'}")
-            if col3.button("🗑️", key=f"del_{source.id}", help="Delete source"):
-                db.delete_automation_source(source.id)
-                st.rerun()
+            with st.container(border=True):
+                col1, col2, col3 = st.columns([4, 2, 1])
+                col1.markdown(f"**{source.url}**")
+                col2.caption(
+                    f"Ultimo check: {format_datetime(source.last_checked_at, 'short') if source.last_checked_at else 'Mai'}")
+                if col3.button("🗑️", key=f"del_auto_{source.id}"): db.delete_automation_source(source.id); st.rerun()
 
-    st.subheader("⚡ Run Post Generation")
-    st.markdown("Click this button to fetch content from your sources and automatically create and schedule new posts.")
-    force_run = st.checkbox("Force run on all sources (ignores 24h check interval)")
-    if st.button("🤖 Generate and Schedule Posts", use_container_width=True):
-        with st.spinner("Running automation... This may take a few minutes."):
-            manager = AutomationManager()
-            summary = manager.run(force_run=force_run)
-            st.success("Automation run complete!")
-            st.metric("New Posts Scheduled", summary['scheduled'])
-            with st.expander("View Log"):
-                st.json(summary)
+    # --- Controlli Manuali ---
+    st.subheader("🎮 Controlli Manuali")
+    force_run = st.checkbox("Forza il controllo su tutte le fonti (ignora l'intervallo di 24h)", key="force_run_auto")
+    if st.button("🔄 Esegui Automazione Ora", type="primary", use_container_width=True):
+        if not st.session_state.automation_enabled:
+            st.warning("L'automazione è disabilitata. Abilitala dal pannello di controllo qui sopra per procedere.")
+        else:
+            with st.spinner("Avvio dell'automazione..."):
+                manager = AutomationManager()
+                summary = manager.run(force_run=force_run)
+                st.success("Automazione completata!")
+                st.metric("Nuovi Post Programmati", summary.get('scheduled', 0))
+                with st.expander("Visualizza Log"): st.json(summary)
 
-# --- TAB 3: Scheduled Posts List ---
+# ==============================================================================
+# TAB 3: PUBLISHING QUEUE - Coda di pubblicazione
+# ==============================================================================
 with tab3:
-    st.header("📊 All Scheduled & Past Posts")
-    st.markdown("A history of all posts that are scheduled, published, or have failed.")
+    st.header("▶️ Publishing Queue: Post Pronti per la Pubblicazione")
 
-    scheduled_data = db.get_scheduled_posts()
+    with st.container(border=True):
+        st.subheader("🔗 Stato Connessione LinkedIn")
+        status = check_linkedin_connection()
+        if status.get('authenticated'):
+            st.success("✅ Connessione a LinkedIn OK!")
+        else:
+            st.error(f"❌ Connessione a LinkedIn fallita: {status.get('error')}")
 
-    if not scheduled_data:
-        st.info("No posts have been scheduled yet.")
+    st.subheader("📬 Post in Coda")
+    posts_to_publish = db.get_posts_to_publish()
+    if not posts_to_publish:
+        st.info("La coda di pubblicazione è vuota.")
     else:
-        post_list = []
-        for item in scheduled_data:
-            post_list.append({
-                "Post ID": item['post']['id'],
-                "Status": item['scheduled']['status'].title(),
-                "Content": item['post']['content'][:100] + "...",
-                "Scheduled For": format_datetime(datetime.fromisoformat(item['scheduled']['scheduled_time'])),
-                "Published At": format_datetime(datetime.fromisoformat(item['scheduled']['published_at'])) if
-                item['scheduled']['published_at'] else "N/A"
-            })
+        st.warning(f"**{len(posts_to_publish)} post** pronti per essere pubblicati!")
+        for post in posts_to_publish: st.markdown(
+            f"- **ID {post.id}**: Programmato per {format_datetime(post.scheduled_for)}")
 
-        df = pd.DataFrame(post_list)
-        st.dataframe(df, use_container_width=True)
+    if st.button("🚀 Processa Coda di Pubblicazione", type="primary", use_container_width=True,
+                 disabled=not posts_to_publish):
+        with st.spinner("Pubblicazione dei post..."):
+            scheduler = LinkedInScheduler()
+            results = asyncio.run(scheduler.process_scheduled_posts())
+            st.success("Processo terminato!")
+            for result in results:
+                if result.get('status') == 'published':
+                    st.success(f"✅ Pubblicato post ID {result.get('post_id')}.")
+                else:
+                    st.error(f"❌ Fallito post ID {result.get('post_id')}: {result.get('error')}")
+            st.rerun()
