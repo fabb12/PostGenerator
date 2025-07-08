@@ -43,7 +43,8 @@ LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID")
 LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET")
 
 # ===== DATABASE =====
-DATABASE_PATH = os.getenv("DATABASE_PATH", str(DATA_DIR / "posts.db"))
+#DATABASE_PATH = os.getenv("DATABASE_PATH", str(DATA_DIR / "posts.db"))
+DATABASE_PATH = os.getenv("DATABASE_PATH", "/opt/render/project/src/data/posts.db")
 DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 
 # ===== LLM SETTINGS =====

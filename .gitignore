@@ -216,3 +216,6 @@ package-lock.json
 # Local config overrides
 config_local.py
 settings_local.py
+# Render specific
+data/posts.db
+logs/*.log
