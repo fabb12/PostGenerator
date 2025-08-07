@@ -374,15 +374,15 @@ def render_quick_actions():
 
     with col1:
         if st.button("📝 Create New Post", use_container_width=True):
-            st.switch_page("pages/1_📝_Create_Post.py")
+            st.switch_page("pages/Create_Post.py")
 
     with col2:
         if st.button("🚀 Schedule/Automate", use_container_width=True):  # Testo del pulsante aggiornato
-            st.switch_page("pages/2_🚀_Schedule_&_Automation.py")  #
+            st.switch_page("pages/Schedule_&_Automation.py")  #
 
     with col3:
         if st.button("📊 View Analytics", use_container_width=True):
-            st.switch_page("pages/3_📊_History.py")
+            st.switch_page("pages/History.py")
 
     with col4:
         if st.button("⚙️ Settings", use_container_width=True):
