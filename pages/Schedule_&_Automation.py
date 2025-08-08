@@ -19,7 +19,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from config import config
 from src.database import db
-from src.linkedin_client import LinkedInScheduler, check_linkedin_connection
+from src.linkedin_connector import LinkedInScheduler
 from src.automation_manager import AutomationManager
 from utils.helpers import format_datetime, validate_url, get_optimal_posting_times
 
@@ -228,14 +228,6 @@ with tab2:
 # ==============================================================================
 with tab3:
     st.header("▶️ Publishing Queue: Post Pronti per la Pubblicazione")
-
-    with st.container(border=True):
-        st.subheader("🔗 Stato Connessione LinkedIn")
-        status = check_linkedin_connection()
-        if status.get('authenticated'):
-            st.success("✅ Connessione a LinkedIn OK!")
-        else:
-            st.error(f"❌ Connessione a LinkedIn fallita: {status.get('error')}")
 
     st.subheader("📬 Post in Coda")
     posts_to_publish = db.get_posts_to_publish()
