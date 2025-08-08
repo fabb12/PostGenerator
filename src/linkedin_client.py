@@ -1,4 +1,5 @@
-# src/linkedin_client.py
+# src/linkedin_client.py test
+
 """
 LinkedIn Client Module
 Handles publishing posts to LinkedIn using the unofficial linkedin-api.
@@ -200,4 +201,5 @@ def check_linkedin_connection() -> Dict[str, Any]:
         is_authed = publisher.authenticate()
         return {'authenticated': is_authed, 'error': None if is_authed else "Autenticazione fallita."}
     except ImportError:
+
         return {'authenticated': False, 'error': "Libreria 'linkedin-api' non installata."}
