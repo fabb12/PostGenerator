@@ -16,6 +16,7 @@ from pathlib import Path
 import logging
 
 from config import config
+from src.encryption import encrypt_password, decrypt_password
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -26,6 +27,23 @@ Base = declarative_base()
 
 
 # --- MODEL DEFINITIONS ---
+
+class LinkedInAccount(Base):
+    """Model for storing LinkedIn account credentials."""
+    __tablename__ = 'linkedin_accounts'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(255), unique=True, nullable=False)
+    encrypted_password = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'email': self.email,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
 
 class Post(Base):
     """Post model for storing LinkedIn posts"""
@@ -114,6 +132,7 @@ class ScheduledPost(Base):
 class AutomationSource(Base):
     """Store sources for automated post generation"""
     __tablename__ = 'automation_sources'
+.py
     id = Column(Integer, primary_key=True, autoincrement=True)
     url = Column(String(500), unique=True, nullable=False)
     source_type = Column(String(50), default='URL')
@@ -171,6 +190,108 @@ class Database:
             _ = obj.id; _ = obj.post_id; _ = obj.scheduled_time; _ = obj.status; _ = obj.created_at; _ = obj.published_at; _ = obj.error_message; _ = obj.retry_count
         elif isinstance(obj, AutomationSource): # Aggiunto il blocco mancante
             _ = obj.id; _ = obj.url; _ = obj.source_type; _ = obj.is_active; _ = obj.last_checked_at; _ = obj.created_at; _ = obj.notes
+        elif isinstance(obj, LinkedInAccount):
+            _ = obj.id; _ = obj.email; _ = obj.encrypted_password; _ = obj.is_active; _ = obj.created_at
+
+    # === LinkedIn Account Operations ===
+    def add_linkedin_account(self, email: str, password: str) -> Optional[LinkedInAccount]:
+        try:
+            with self.get_session() as session:
+                if session.query(LinkedInAccount).filter(LinkedInAccount.email == email).first():
+                    logger.warning(f"LinkedIn account {email} already exists.")
+                    return None
+
+                encrypted_password = encrypt_password(password)
+
+                is_first_account = session.query(LinkedInAccount).count() == 0
+
+                account = LinkedInAccount(
+                    email=email,
+                    encrypted_password=encrypted_password,
+                    is_active=is_first_account
+                )
+                session.add(account)
+                session.commit()
+                session.refresh(account)
+                self._load_all_attributes(account)
+                session.expunge(account)
+                return account
+        except Exception as e:
+            logger.error(f"Error adding LinkedIn account {email}: {str(e)}")
+            return None
+
+    def get_linkedin_accounts(self) -> List[LinkedInAccount]:
+        try:
+            with self.get_session() as session:
+                accounts = session.query(LinkedInAccount).order_by(LinkedInAccount.created_at.desc()).all()
+                for account in accounts:
+                    self._load_all_attributes(account)
+                    session.expunge(account)
+                return accounts
+        except Exception as e:
+            logger.error(f"Error getting LinkedIn accounts: {str(e)}")
+            return []
+
+    def get_linkedin_account(self, account_id: int) -> Optional[LinkedInAccount]:
+        try:
+            with self.get_session() as session:
+                account = session.query(LinkedInAccount).filter(LinkedInAccount.id == account_id).first()
+                if account:
+                    self._load_all_attributes(account)
+                    session.expunge(account)
+                return account
+        except Exception as e:
+            logger.error(f"Error getting LinkedIn account {account_id}: {str(e)}")
+            return None
+
+    def get_active_linkedin_account(self) -> Optional[LinkedInAccount]:
+        try:
+            with self.get_session() as session:
+                account = session.query(LinkedInAccount).filter(LinkedInAccount.is_active == True).first()
+                if account:
+                    self._load_all_attributes(account)
+                    session.expunge(account)
+                return account
+        except Exception as e:
+            logger.error(f"Error getting active LinkedIn account: {str(e)}")
+            return None
+
+    def set_active_linkedin_account(self, account_id: int) -> bool:
+        try:
+            with self.get_session() as session:
+                session.query(LinkedInAccount).update({LinkedInAccount.is_active: False})
+                account = session.query(LinkedInAccount).filter(LinkedInAccount.id == account_id).first()
+                if account:
+                    account.is_active = True
+                    session.commit()
+                    logger.info(f"Set account {account.email} (ID: {account_id}) as active.")
+                    return True
+                else:
+                    logger.warning(f"Could not find account with ID {account_id} to set as active.")
+                    return False
+        except Exception as e:
+            logger.error(f"Error setting active LinkedIn account {account_id}: {str(e)}")
+            return False
+
+    def delete_linkedin_account(self, account_id: int) -> bool:
+        try:
+            with self.get_session() as session:
+                account = session.query(LinkedInAccount).filter(LinkedInAccount.id == account_id).first()
+                if account:
+                    session.delete(account)
+                    logger.info(f"Deleted LinkedIn account ID {account_id}")
+
+                    if account.is_active:
+                        remaining_account = session.query(LinkedInAccount).first()
+                        if remaining_account:
+                            remaining_account.is_active = True
+                            logger.info(f"Set account {remaining_account.email} as active after deletion.")
+
+                    return True
+                return False
+        except Exception as e:
+            logger.error(f"Error deleting LinkedIn account {account_id}: {str(e)}")
+            return False
 
     # === Post Operations ===
     def create_post(self, content: str, **kwargs) -> int:

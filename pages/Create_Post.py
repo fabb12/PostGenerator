@@ -21,7 +21,8 @@ from src.content_extractor import ExtractedContent, extract_content
 from src.post_generator import PostGenerator, PostTone, PostType
 from src.database import db
 from utils.helpers import validate_url
-from src.linkedin_client import LinkedInPublisher
+from src.linkedin_connector import LinkedInPublisher
+from src.encryption import decrypt_password
 
 # Page config
 st.set_page_config(
@@ -226,19 +227,14 @@ def render_post_actions():
 
     selected_post = st.session_state.generated_posts[st.session_state.selected_post_index]
 
-    # ### <<< MODIFICA CHIAVE 1: Sezione Anteprima Media potenziata ###
     with st.container(border=True):
         st.markdown("#### Anteprima Media da Condividere")
-        # Cerca la prima fonte URL valida tra quelle estratte
-        link_source = next((c for c in st.session_state.extracted_content if c.source_type == 'web' and c.is_valid),
-                           None)
-
+        link_source = next((c for c in st.session_state.extracted_content if c.source_type == 'web' and c.is_valid), None)
         if link_source:
             st.markdown(f"**Link:** `{link_source.source}`")
             if link_source.image_url:
                 st.markdown("**Immagine di Anteprima:**")
-                st.image(link_source.image_url, width=300,
-                         caption="Questa immagine verrà usata da LinkedIn per l'anteprima.")
+                st.image(link_source.image_url, width=300, caption="Questa immagine verrà usata da LinkedIn per l'anteprima.")
             else:
                 st.info("Nessuna immagine di anteprima trovata. LinkedIn potrebbe sceglierne una automaticamente.")
         else:
@@ -252,6 +248,24 @@ def render_post_actions():
     st.session_state.edited_content = edited_content
     st.caption(f"Caratteri: {len(edited_content)}/{config.MAX_POST_LENGTH}")
 
+    # --- Account Selection ---
+    accounts = db.get_linkedin_accounts()
+    if not accounts:
+        st.error("Nessun account LinkedIn configurato. Vai su Impostazioni per aggiungerne uno.")
+        return
+
+    account_options = {acc.id: acc.email for acc in accounts}
+    active_account = db.get_active_linkedin_account()
+    default_index = list(account_options.keys()).index(active_account.id) if active_account else 0
+
+    selected_account_id = st.selectbox(
+        "Pubblica con l'account:",
+        options=list(account_options.keys()),
+        format_func=lambda x: account_options[x],
+        index=default_index
+    )
+
+    # --- Action Buttons ---
     col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("💾 Salva Bozza", use_container_width=True):
@@ -261,7 +275,7 @@ def render_post_actions():
             save_post_action(edited_content, selected_post, 'schedule')
     with col3:
         if st.button("🚀 Pubblica Ora", type="primary", use_container_width=True):
-            publish_post_action(edited_content, selected_post)
+            publish_post_action(edited_content, selected_post, selected_account_id)
 
 
 def save_post_action(content: str, original_post, action_type: str):
@@ -286,33 +300,41 @@ def save_post_action(content: str, original_post, action_type: str):
         st.error(f"Errore nel salvataggio: {e}")
 
 
-def publish_post_action(content: str, original_post):
+def publish_post_action(content: str, original_post, account_id: int):
     """Handles the direct publishing logic."""
-    if not content.strip(): st.error("Il contenuto non può essere vuoto."); return
+    if not content.strip():
+        st.error("Il contenuto non può essere vuoto.")
+        return
 
-    # ### <<< MODIFICA CHIAVE 2: Logica per trovare il link consistente ###
+    account = db.get_linkedin_account(account_id)
+    if not account:
+        st.error(f"Account con ID {account_id} non trovato.")
+        return
+
     link_source = next((c for c in st.session_state.extracted_content if c.source_type == 'web' and c.is_valid), None)
     link_to_share = link_source.source if link_source else None
 
-    with st.spinner("Pubblicazione su LinkedIn..."):
+    with st.spinner(f"Pubblicazione su LinkedIn con l'account {account.email}..."):
         try:
-            publisher = LinkedInPublisher()
+            password = decrypt_password(account.encrypted_password)
+            publisher = LinkedInPublisher(email=account.email, password=password)
+
             result = asyncio.run(publisher.publish_post(post_content=content, link_to_share=link_to_share))
 
             if result.success:
-                # Usa una funzione dedicata per salvare il post pubblicato per pulizia
                 save_published_post(content, original_post, result)
                 st.success("✅ Post pubblicato con successo!")
-                if result.post_url: st.link_button("Visualizza su LinkedIn", result.post_url)
-                st.balloons();
-                time.sleep(2);
-                init_page_state();
+                if result.post_url:
+                    st.link_button("Visualizza su LinkedIn", result.post_url)
+                st.balloons()
+                time.sleep(2)
+                init_page_state()
                 st.rerun()
             else:
                 st.error(f"❌ Pubblicazione fallita: {result.error_message}")
         except Exception as e:
-            st.error(f"Errore imprevisto: {e}")
-            import traceback;
+            st.error(f"Errore imprevisto durante la pubblicazione: {e}")
+            import traceback
             traceback.print_exc()
 
 

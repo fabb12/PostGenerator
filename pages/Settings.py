@@ -2,19 +2,22 @@
 
 """
 Settings Page
-View app configuration and test connections.
+Manage LinkedIn accounts, view app configuration, and test connections.
 """
 
 import streamlit as st
 from pathlib import Path
 import sys
+import time
 
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from config import config
-from src.linkedin_client import check_linkedin_connection
+from src.database import db, LinkedInAccount
+from src.linkedin_connector import LinkedInPublisher  # To test connections
 from src.post_generator import get_model_info
+from src.encryption import decrypt_password
 
 st.set_page_config(
     page_title="Settings - LinkedIn Generator",
@@ -24,28 +27,82 @@ st.set_page_config(
 
 st.title("⚙️ App Settings & Status")
 
-# --- LinkedIn Settings ---
-with st.container(border=True):
-    st.subheader("🔗 LinkedIn Connection")
+# --- Function to test a specific account ---
+def test_account_connection(account: LinkedInAccount):
+    """Tests connection for a single LinkedIn account."""
+    with st.spinner(f"Testing connection for {account.email}..."):
+        try:
+            password = decrypt_password(account.encrypted_password)
+            publisher = LinkedInPublisher(email=account.email, password=password)
 
-    email = config.LINKEDIN_EMAIL
-    if email:
-        st.markdown(f"**Email Configured:** `{email}`")
-    else:
-        st.error("LinkedIn email not configured in `.env` file.")
-
-    if st.button("Test LinkedIn Connection"):
-        with st.spinner("Testing connection..."):
-            status = check_linkedin_connection()
-            if status.get('authenticated'):
-                st.success("✅ Connection successful! Authenticated with LinkedIn.")
+            if publisher.authenticate():
+                st.success(f"✅ Connection successful for {account.email}!")
             else:
-                st.error(f"❌ Connection failed: {status.get('error')}")
+                st.error(f"❌ Authentication failed for {account.email}. Check credentials.")
+        except Exception as e:
+            st.error(f"❌ An error occurred while testing {account.email}: {e}")
+
+# --- LinkedIn Account Management ---
+with st.container(border=True):
+    st.subheader("🔗 LinkedIn Account Management")
+
+    # --- Add New Account Form ---
+    with st.expander("➕ Add New LinkedIn Account"):
+        with st.form("new_account_form", clear_on_submit=True):
+            new_email = st.text_input("LinkedIn Email")
+            new_password = st.text_input("LinkedIn Password", type="password")
+            submitted = st.form_submit_button("Add Account")
+
+            if submitted:
+                if new_email and new_password:
+                    try:
+                        db.add_linkedin_account(email=new_email, password=new_password)
+                        st.success(f"Account for {new_email} added successfully!")
+                        time.sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error adding account: {e}")
+                else:
+                    st.warning("Please provide both email and password.")
+
+    st.divider()
+
+    # --- Display Existing Accounts ---
+    accounts = db.get_linkedin_accounts()
+    if not accounts:
+        st.info("No LinkedIn accounts configured. Add one above to get started.")
+    else:
+        st.markdown("##### Configured Accounts")
+        active_account = next((acc for acc in accounts if acc.is_active), None)
+
+        for acc in accounts:
+            is_active = " (Active)" if acc.is_active else ""
+            st.markdown(f"**Email:** `{acc.email}`{is_active}")
+
+            col1, col2, col3 = st.columns(3)
+
+            # Set Active Button
+            if col1.button("Set Active", key=f"activate_{acc.id}", disabled=acc.is_active, use_container_width=True):
+                db.set_active_linkedin_account(acc.id)
+                st.success(f"{acc.email} is now the active account.")
+                time.sleep(1)
+                st.rerun()
+
+            # Test Connection Button
+            if col2.button("Test Connection", key=f"test_{acc.id}", use_container_width=True):
+                test_account_connection(acc)
+
+            # Delete Button
+            if col3.button("🗑️ Delete", key=f"delete_{acc.id}", use_container_width=True):
+                db.delete_linkedin_account(acc.id)
+                st.warning(f"Account {acc.email} deleted.")
+                time.sleep(1)
+                st.rerun()
+            st.markdown("---")
 
 # --- AI Model Settings ---
 with st.container(border=True):
     st.subheader("🤖 AI Model Status")
-
     model_info = get_model_info()
 
     if model_info['gemini']['available']:
