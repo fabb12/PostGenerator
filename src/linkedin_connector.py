@@ -89,13 +89,43 @@ class LinkedInPublisher:
         return await self._publish_text_post(post_content, visibility)
 
     async def _publish_text_post(self, content: str, visibility: str) -> PublishResult:
-        """Publishes a text-only post."""
+        """
+        Publishes a text-only post, dynamically finding the correct method.
+        """
         try:
-            response = self._linkedin_client.create_post(text=content, visibility=visibility.upper())
-            return self._validate_and_build_result(response, "create_post")
+            # List of potential method names for a text post. 'create_ugc_post' is a common standard.
+            text_post_method_names = ['create_ugc_post', 'submit_share', 'create_share', 'create_post']
+            method_to_use = None
+            found_method_name = ""
+
+            # Find the first available method on the client object
+            for method_name in text_post_method_names:
+                if hasattr(self._linkedin_client, method_name):
+                    method_to_use = getattr(self._linkedin_client, method_name)
+                    found_method_name = method_name
+                    print(f"DEBUG: Found available text posting method: '{found_method_name}'")
+                    break
+
+            if not method_to_use:
+                error_msg = f"No valid method for text posting found. Your 'linkedin-api' version may be incompatible. Tried: {text_post_method_names}"
+                return PublishResult(success=False, error_message=error_msg)
+
+            # Try calling the method with different parameter names for the content
+            response = None
+            try:
+                # First, try with the 'text' parameter, as it's a common choice for text-only posts
+                response = method_to_use(text=content, visibility=visibility.upper())
+            except TypeError:
+                # If 'text' is not the right parameter name, it will likely raise a TypeError.
+                # In that case, we try with 'commentary', which is used for link shares.
+                print(f"DEBUG: Calling '{found_method_name}' with 'text' failed. Trying 'commentary'.")
+                response = method_to_use(commentary=content, visibility=visibility.upper())
+
+            return self._validate_and_build_result(response, found_method_name)
+
         except Exception as e:
             traceback.print_exc()
-            return PublishResult(success=False, error_message=f"API error (text post): {e}")
+            return PublishResult(success=False, error_message=f"API error (text post, method '{found_method_name}'): {e}")
 
     async def _publish_link_share(self, commentary: str, link: str, visibility: str) -> PublishResult:
         """
