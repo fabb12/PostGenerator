@@ -65,6 +65,9 @@ class LinkedInPublisher:
             if self._linkedin_client.get_profile():
                 self._authenticated = True
                 print(f"✅ LinkedIn Authentication Successful for {self.email}.")
+                print("\n--- DEBUG: AVAILABLE METHODS ON LINKEDIN CLIENT ---")
+                print(dir(self._linkedin_client))
+                print("---------------------------------------------------\n")
                 return True
             else:
                 # This case might happen if credentials are wrong but no exception is thrown
